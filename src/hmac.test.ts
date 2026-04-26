@@ -17,7 +17,6 @@ function makePayload(overrides: Partial<UploadTokenPayload> = {}): UploadTokenPa
     allowedTypes: ['image/*'],
     iat: now,
     exp: now + 3600,
-    projectId: 'proj-456',
     ...overrides
   };
 }
@@ -28,7 +27,7 @@ describe('HMAC upload tokens', () => {
     const token = await signUploadToken(payload, SECRET);
     const result = await verifyUploadToken(token, SECRET);
     expect(result).not.toBeNull();
-    expect(result?.projectId).toBe('proj-456');
+    expect(result?.projectName).toBe('test-project');
     expect(result?.exp).toBe(payload.exp);
   });
 
@@ -54,12 +53,12 @@ describe('HMAC upload tokens', () => {
   it('resolves the secret per-project via async resolver', async () => {
     const token = await signUploadToken(makePayload(), SECRET);
     const seen: string[] = [];
-    const result = await verifyUploadToken(token, async (projectId) => {
-      seen.push(projectId);
+    const result = await verifyUploadToken(token, async (projectName) => {
+      seen.push(projectName);
       return SECRET;
     });
     expect(result).not.toBeNull();
-    expect(seen).toEqual(['proj-456']);
+    expect(seen).toEqual(['test-project']);
   });
 });
 
@@ -67,7 +66,7 @@ describe('AuraImage.signUpload — expiresIn semantics', () => {
   it('treats expiresIn as a duration in seconds (default 3600)', async () => {
     const aura = new AuraImage({ secretKey: SECRET, projectName: 'test' });
     const before = nowSec();
-    const token = await aura.signUpload({ projectId: 'proj-1' });
+    const token = await aura.signUpload();
     const after = nowSec();
 
     const result = await verifyUploadToken(token, SECRET);
@@ -79,12 +78,19 @@ describe('AuraImage.signUpload — expiresIn semantics', () => {
   it('respects explicit expiresIn (seconds)', async () => {
     const aura = new AuraImage({ secretKey: SECRET, projectName: 'test' });
     const before = nowSec();
-    const token = await aura.signUpload({ projectId: 'proj-1', expiresIn: 60 });
+    const token = await aura.signUpload({ expiresIn: 60 });
     const after = nowSec();
 
     const result = await verifyUploadToken(token, SECRET);
     expect(result).not.toBeNull();
     expect(result!.exp).toBeGreaterThanOrEqual(before + 60);
     expect(result!.exp).toBeLessThanOrEqual(after + 60);
+  });
+
+  it('allows per-call projectName override', async () => {
+    const aura = new AuraImage({ secretKey: SECRET, projectName: 'default-project' });
+    const token = await aura.signUpload({ projectName: 'override-project' });
+    const result = await verifyUploadToken(token, SECRET);
+    expect(result?.projectName).toBe('override-project');
   });
 });

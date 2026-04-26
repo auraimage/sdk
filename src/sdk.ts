@@ -37,15 +37,14 @@ export class AuraImage {
    * return `{ signature }` to your client. NEVER instantiate AuraImage
    * in browser code — the secret key must stay on your server.
    */
-  async signUpload(options: SignUploadOptions): Promise<string> {
+  async signUpload(options: SignUploadOptions = {}): Promise<string> {
     const nowSec = Math.floor(Date.now() / 1000);
     const payload: UploadTokenPayload = {
-      projectName: this.projectName,
+      projectName: options.projectName ?? this.projectName,
       maxSize: parseSize(options.maxSize ?? '5mb'),
       allowedTypes: options.allowedTypes ?? ['image/*'],
       iat: nowSec,
-      exp: nowSec + (options.expiresIn ?? 3600),
-      projectId: options.projectId
+      exp: nowSec + (options.expiresIn ?? 3600)
     };
 
     return signUploadToken(payload, this.secretKey);

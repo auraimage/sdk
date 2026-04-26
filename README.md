@@ -19,17 +19,16 @@ pnpm add @auraimage/sdk
 // Server-side handler (Next.js Route Handler, Workers, Hono, Express, etc.)
 import { AuraImage } from '@auraimage/sdk';
 
-const aura = new AuraImage({ secretKey: process.env.AURA_SECRET_KEY! });
+const aura = new AuraImage({
+  secretKey: process.env.AURA_SECRET_KEY!,
+  projectName: 'my-project'
+});
 
 export async function POST() {
   const signature = await aura.signUpload({
-    projectName: 'my-project',
-    userId: 'user_123',
-    projectId: 'proj_456',
-    tier: 'hacker',
     maxSize: '10mb',
     allowedTypes: ['image/*'],
-    expires: Date.now() + 60 * 60 * 1000
+    expiresIn: 3600
   });
 
   return Response.json({ signature });

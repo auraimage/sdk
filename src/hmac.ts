@@ -34,7 +34,7 @@ export async function signUploadToken(payload: UploadTokenPayload, secret: strin
 
 export async function verifyUploadToken(
   token: string,
-  secret: string | ((projectId: string) => Promise<string>)
+  secret: string | ((projectName: string) => Promise<string>)
 ): Promise<UploadTokenPayload | null> {
   const dot = token.lastIndexOf('.');
   if (dot === -1) return null;
@@ -51,9 +51,9 @@ export async function verifyUploadToken(
     return null;
   }
 
-  if (typeof secret !== 'string' && !payload.projectId) return null;
+  if (typeof secret !== 'string' && !payload.projectName) return null;
 
-  const resolvedSecret = typeof secret === 'string' ? secret : await secret(payload.projectId);
+  const resolvedSecret = typeof secret === 'string' ? secret : await secret(payload.projectName);
 
   const enc = new TextEncoder();
   const key = await getKey(resolvedSecret);

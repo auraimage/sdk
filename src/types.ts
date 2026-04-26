@@ -11,7 +11,8 @@ export interface SignUploadOptions {
    * Token lifetime in seconds. Default: 3600 (1 hour).
    */
   expiresIn?: number;
-  projectId: string;
+  /** Override the project name set on the AuraImage instance. */
+  projectName?: string;
 }
 
 /** Returned by the Auraimage CDN upload endpoint on success. */
@@ -42,5 +43,4 @@ export interface UploadTokenPayload {
   iat: number;
   /** Expiry time (Unix seconds) after which the token is invalid. */
   exp: number;
-  projectId: string;
 }
