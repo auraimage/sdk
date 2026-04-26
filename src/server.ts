@@ -1,2 +1,2 @@
 export type { Tier, UploadTokenPayload } from './types.js';
-export { signUploadToken, verifyUploadToken } from './hmac.js';
+export { MissingProjectNameError, signUploadToken, verifyUploadToken } from './hmac.js';

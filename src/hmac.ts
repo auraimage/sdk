@@ -1,5 +1,12 @@
 import type { UploadTokenPayload } from './types.js';
 
+export class MissingProjectNameError extends Error {
+  constructor() {
+    super('Token payload is missing projectName — upgrade @auraimage/sdk to >= 0.4.0 and re-sign');
+    this.name = 'MissingProjectNameError';
+  }
+}
+
 function b64url(buf: ArrayBuffer): string {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
     .replace(/\+/g, '-')
@@ -51,7 +58,7 @@ export async function verifyUploadToken(
     return null;
   }
 
-  if (typeof secret !== 'string' && !payload.projectName) return null;
+  if (typeof secret !== 'string' && !payload.projectName) throw new MissingProjectNameError();
 
   const resolvedSecret = typeof secret === 'string' ? secret : await secret(payload.projectName);
 

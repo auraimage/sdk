@@ -1,4 +1,4 @@
-import { signUploadToken, verifyUploadToken } from './hmac.js';
+import { MissingProjectNameError, signUploadToken, verifyUploadToken } from './hmac.js';
 import { AuraImage } from './sdk.js';
 import type { UploadTokenPayload } from './types.js';
 import { describe, expect, it } from 'vitest';
@@ -48,6 +48,18 @@ describe('HMAC upload tokens', () => {
     const token = await signUploadToken(makePayload(), SECRET);
     const result = await verifyUploadToken(token, 'wrong-secret');
     expect(result).toBeNull();
+  });
+
+  it('throws MissingProjectNameError when payload omits projectName and a resolver callback is used', async () => {
+    // Simulates a token signed by a pre-0.4.0 SDK (no projectName field).
+    const now = nowSec();
+    const legacyPayload = { maxSize: 5 * 1024 * 1024, allowedTypes: ['image/*'], iat: now, exp: now + 3600 };
+    const token = await signUploadToken(legacyPayload as UploadTokenPayload, SECRET);
+    await expect(
+      verifyUploadToken(token, async () => {
+        throw new Error('resolver should not be called');
+      })
+    ).rejects.toBeInstanceOf(MissingProjectNameError);
   });
 
   it('resolves the secret per-project via async resolver', async () => {
