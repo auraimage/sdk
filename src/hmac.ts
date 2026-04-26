@@ -34,7 +34,7 @@ export async function signUploadToken(payload: UploadTokenPayload, secret: strin
 
 export async function verifyUploadToken(
   token: string,
-  secret: string | ((userId: string) => Promise<string>)
+  secret: string | ((projectId: string) => Promise<string>)
 ): Promise<UploadTokenPayload | null> {
   const dot = token.lastIndexOf('.');
   if (dot === -1) return null;
@@ -42,7 +42,7 @@ export async function verifyUploadToken(
   const encodedPayload = token.slice(0, dot);
   const sigB64 = token.slice(dot + 1);
 
-  // Decode payload first to resolve the per-user secret (safe: signature is verified after)
+  // Decode payload first to resolve the per-project secret (safe: signature is verified after)
   let payload: UploadTokenPayload;
   try {
     const decoded = b64urlDecode(encodedPayload);
@@ -51,9 +51,9 @@ export async function verifyUploadToken(
     return null;
   }
 
-  if (typeof secret !== 'string' && !payload.userId) return null;
+  if (typeof secret !== 'string' && !payload.projectId) return null;
 
-  const resolvedSecret = typeof secret === 'string' ? secret : await secret(payload.userId);
+  const resolvedSecret = typeof secret === 'string' ? secret : await secret(payload.projectId);
 
   const enc = new TextEncoder();
   const key = await getKey(resolvedSecret);
@@ -62,7 +62,7 @@ export async function verifyUploadToken(
   const valid = await crypto.subtle.verify('HMAC', key, sigBytes as BufferSource, enc.encode(encodedPayload));
   if (!valid) return null;
 
-  if (payload.expires < Date.now()) return null;
+  if (payload.exp < Math.floor(Date.now() / 1000)) return null;
 
   return payload;
 }

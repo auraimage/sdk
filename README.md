@@ -23,7 +23,7 @@ const aura = new AuraImage({ secretKey: process.env.AURA_SECRET_KEY! });
 
 export async function POST() {
   const signature = await aura.signUpload({
-    slug: 'my-project',
+    projectName: 'my-project',
     userId: 'user_123',
     projectId: 'proj_456',
     tier: 'hacker',

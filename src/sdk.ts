@@ -17,12 +17,19 @@ export function parseSize(input: number | string): number {
   return Math.round(value * (multipliers[unit] ?? 1));
 }
 
+export interface AuraImageOptions {
+  secretKey: string;
+  projectName: string;
+}
+
 export class AuraImage {
   private secretKey: string;
+  private projectName: string;
 
-  constructor({ secretKey }: { secretKey: string }) {
+  constructor({ secretKey, projectName }: AuraImageOptions) {
     if (!secretKey) throw new Error('AuraImage: secretKey is required');
     this.secretKey = secretKey;
+    this.projectName = projectName;
   }
 
   /**
@@ -31,21 +38,14 @@ export class AuraImage {
    * in browser code — the secret key must stay on your server.
    */
   async signUpload(options: SignUploadOptions): Promise<string> {
-    const expiresMs =
-      options.expires instanceof Date
-        ? options.expires.getTime()
-        : typeof options.expires === 'number'
-          ? options.expires
-          : Date.now() + 3_600_000;
-
+    const nowSec = Math.floor(Date.now() / 1000);
     const payload: UploadTokenPayload = {
-      slug: options.slug,
+      projectName: this.projectName,
       maxSize: parseSize(options.maxSize ?? '5mb'),
       allowedTypes: options.allowedTypes ?? ['image/*'],
-      expires: expiresMs,
-      userId: options.userId,
-      projectId: options.projectId,
-      tier: options.tier as Tier
+      iat: nowSec,
+      exp: nowSec + (options.expiresIn ?? 3600),
+      projectId: options.projectId
     };
 
     return signUploadToken(payload, this.secretKey);
