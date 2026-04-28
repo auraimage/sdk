@@ -1,4 +1,10 @@
-import { MissingProjectNameError, signUploadToken, verifyUploadToken } from './hmac.js';
+import {
+  MissingProjectNameError,
+  signServeToken,
+  signUploadToken,
+  verifyServeToken,
+  verifyUploadToken
+} from './hmac.js';
 import { AuraImage } from './sdk.js';
 import type { UploadTokenPayload } from './types.js';
 import { describe, expect, it } from 'vitest';
@@ -104,5 +110,59 @@ describe('AuraImage.signUpload — expiresIn semantics', () => {
     const token = await aura.signUpload({ projectName: 'override-project' });
     const result = await verifyUploadToken(token, SECRET);
     expect(result?.projectName).toBe('override-project');
+  });
+});
+
+describe('HMAC serve tokens', () => {
+  const SERVE_SECRET = 'psk_live_0123456789abcdef0123456789abcdef';
+
+  it('round-trips: sign then verify returns payload', async () => {
+    const exp = nowSec() + 600;
+    const token = await signServeToken({ p: 'proj', f: 'abc-pic.jpg', exp }, SERVE_SECRET);
+    const result = await verifyServeToken(token, SERVE_SECRET);
+    expect(result).not.toBeNull();
+    expect(result?.p).toBe('proj');
+    expect(result?.f).toBe('abc-pic.jpg');
+    expect(result?.exp).toBe(exp);
+  });
+
+  it('returns null for tampered token', async () => {
+    const token = await signServeToken({ p: 'proj', f: 'a.jpg', exp: nowSec() + 600 }, SERVE_SECRET);
+    const tampered = token.slice(0, -4) + 'XXXX';
+    expect(await verifyServeToken(tampered, SERVE_SECRET)).toBeNull();
+  });
+
+  it('returns null for expired token', async () => {
+    const token = await signServeToken({ p: 'proj', f: 'a.jpg', exp: nowSec() - 1 }, SERVE_SECRET);
+    expect(await verifyServeToken(token, SERVE_SECRET)).toBeNull();
+  });
+
+  it('returns null for wrong secret', async () => {
+    const token = await signServeToken({ p: 'proj', f: 'a.jpg', exp: nowSec() + 600 }, SERVE_SECRET);
+    expect(await verifyServeToken(token, 'psk_live_wrong000000000000000000000000')).toBeNull();
+  });
+
+  it('rejects payloads missing required fields', async () => {
+    // payload signed with the right secret but with wrong shape
+    const enc = new TextEncoder();
+    const bad = JSON.stringify({ p: 'proj', exp: nowSec() + 600 }); // missing f
+    const b64 = btoa(String.fromCharCode(...enc.encode(bad)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+    const key = await crypto.subtle.importKey(
+      'raw',
+      enc.encode(SERVE_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(b64));
+    const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+    const token = `${b64}.${sigB64}`;
+    expect(await verifyServeToken(token, SERVE_SECRET)).toBeNull();
   });
 });

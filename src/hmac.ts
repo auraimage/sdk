@@ -1,4 +1,4 @@
-import type { UploadTokenPayload } from './types.js';
+import type { ServeTokenPayload, UploadTokenPayload } from './types.js';
 
 export class MissingProjectNameError extends Error {
   constructor() {
@@ -69,6 +69,41 @@ export async function verifyUploadToken(
   const valid = await crypto.subtle.verify('HMAC', key, sigBytes as BufferSource, enc.encode(encodedPayload));
   if (!valid) return null;
 
+  if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+
+  return payload;
+}
+
+export async function signServeToken(payload: ServeTokenPayload, secret: string): Promise<string> {
+  const enc = new TextEncoder();
+  const encodedPayload = b64url(enc.encode(JSON.stringify(payload)).buffer as ArrayBuffer);
+  const key = await getKey(secret);
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(encodedPayload));
+  return `${encodedPayload}.${b64url(sig)}`;
+}
+
+export async function verifyServeToken(token: string, secret: string): Promise<ServeTokenPayload | null> {
+  const dot = token.lastIndexOf('.');
+  if (dot === -1) return null;
+
+  const encodedPayload = token.slice(0, dot);
+  const sigB64 = token.slice(dot + 1);
+
+  let payload: ServeTokenPayload;
+  try {
+    const decoded = b64urlDecode(encodedPayload);
+    payload = JSON.parse(new TextDecoder().decode(decoded));
+  } catch {
+    return null;
+  }
+
+  const enc = new TextEncoder();
+  const key = await getKey(secret);
+  const sigBytes = b64urlDecode(sigB64);
+  const valid = await crypto.subtle.verify('HMAC', key, sigBytes as BufferSource, enc.encode(encodedPayload));
+  if (!valid) return null;
+
+  if (typeof payload.p !== 'string' || typeof payload.f !== 'string' || typeof payload.exp !== 'number') return null;
   if (payload.exp < Math.floor(Date.now() / 1000)) return null;
 
   return payload;
