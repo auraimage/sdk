@@ -8,7 +8,7 @@ import type {
 } from './types.js';
 import { MAX_SERVE_TTL_SEC } from './types.js';
 
-/** Parse "5mb", "500kb", "2gb" or pass-through numbers (bytes). */
+/** Parse "30mb", "500kb", "2gb" or pass-through numbers (bytes). */
 export function parseSize(input: number | string): number {
   if (typeof input === 'number') return input;
   const match = input.trim().match(/^(\d+(?:\.\d+)?)\s*(kb|mb|gb|b)?$/i);
@@ -62,7 +62,7 @@ export class AuraImage {
     const nowSec = Math.floor(Date.now() / 1000);
     const payload: UploadTokenPayload = {
       projectName: options.projectName ?? this.projectName,
-      maxSize: parseSize(options.maxSize ?? '5mb'),
+      maxSize: parseSize(options.maxSize ?? '30mb'),
       allowedTypes: options.allowedTypes ?? ['image/*'],
       iat: nowSec,
       exp: nowSec + (options.expiresIn ?? 3600),

@@ -5,7 +5,7 @@ export type ImageVisibility = 'public' | 'private';
 export interface SignUploadOptions {
   /**
    * Max file size. Accepts bytes (number) or human-readable string
-   * like "5mb", "500kb", "2gb".
+   * like "30mb", "500kb", "2gb".
    */
   maxSize?: number | string;
   /** MIME patterns to allow. Default: ["image/*"] */

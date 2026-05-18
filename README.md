@@ -68,7 +68,7 @@ Mints a short-lived HMAC signature the browser uses to upload a single file.
 
 ```ts
 await aura.signUpload({
-  maxSize: '5mb',                     // default '5mb'
+  maxSize: '30mb',                    // default '30mb'
   allowedTypes: ['image/*'],          // default ['image/*']
   expiresIn: 3600,                    // seconds, default 3600
   visibility: 'private',              // optional 'public' | 'private'
