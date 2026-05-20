@@ -166,3 +166,39 @@ describe('HMAC serve tokens', () => {
     expect(await verifyServeToken(token, SERVE_SECRET)).toBeNull();
   });
 });
+
+describe('verifyUploadToken multi-key', () => {
+  const payload = { projectName: 'p', maxSize: 1, allowedTypes: ['image/*'], iat: 1, exp: 9999999999 } as const;
+
+  it('verifies when the matching secret is anywhere in the returned array', async () => {
+    const token = await signUploadToken(payload, 'sk_live_a'.padEnd(40, '0'));
+    const result = await verifyUploadToken(token, async () => [
+      'sk_live_wrong'.padEnd(40, '0'),
+      'sk_live_a'.padEnd(40, '0'),
+      'sk_live_also-wrong'.padEnd(40, '0')
+    ]);
+    expect(result).not.toBeNull();
+    expect(result?.projectName).toBe('p');
+  });
+
+  it('returns null when no secret in the array matches', async () => {
+    const token = await signUploadToken(payload, 'sk_live_a'.padEnd(40, '0'));
+    const result = await verifyUploadToken(token, async () => [
+      'sk_live_x'.padEnd(40, '0'),
+      'sk_live_y'.padEnd(40, '0')
+    ]);
+    expect(result).toBeNull();
+  });
+
+  it('still works with the single-string callback (back-compat)', async () => {
+    const token = await signUploadToken(payload, 'sk_live_a'.padEnd(40, '0'));
+    const result = await verifyUploadToken(token, async () => 'sk_live_a'.padEnd(40, '0'));
+    expect(result).not.toBeNull();
+  });
+
+  it('returns null on empty array', async () => {
+    const token = await signUploadToken(payload, 'sk_live_a'.padEnd(40, '0'));
+    const result = await verifyUploadToken(token, async () => []);
+    expect(result).toBeNull();
+  });
+});

@@ -41,7 +41,7 @@ export async function signUploadToken(payload: UploadTokenPayload, secret: strin
 
 export async function verifyUploadToken(
   token: string,
-  secret: string | ((projectName: string) => Promise<string>)
+  secret: string | ((projectName: string) => Promise<string | string[]>)
 ): Promise<UploadTokenPayload | null> {
   const dot = token.lastIndexOf('.');
   if (dot === -1) return null;
@@ -60,18 +60,24 @@ export async function verifyUploadToken(
 
   if (typeof secret !== 'string' && !payload.projectName) throw new MissingProjectNameError();
 
-  const resolvedSecret = typeof secret === 'string' ? secret : await secret(payload.projectName);
+  const resolved = typeof secret === 'string' ? secret : await secret(payload.projectName);
+  const candidates: string[] = typeof resolved === 'string' ? [resolved] : resolved;
+  if (candidates.length === 0) return null;
 
   const enc = new TextEncoder();
-  const key = await getKey(resolvedSecret);
   const sigBytes = b64urlDecode(sigB64);
+  const data = enc.encode(encodedPayload);
 
-  const valid = await crypto.subtle.verify('HMAC', key, sigBytes as BufferSource, enc.encode(encodedPayload));
-  if (!valid) return null;
-
-  if (payload.exp < Math.floor(Date.now() / 1000)) return null;
-
-  return payload;
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const key = await getKey(candidate);
+    const valid = await crypto.subtle.verify('HMAC', key, sigBytes as BufferSource, data);
+    if (valid) {
+      if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+      return payload;
+    }
+  }
+  return null;
 }
 
 export async function signServeToken(payload: ServeTokenPayload, secret: string): Promise<string> {
