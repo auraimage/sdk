@@ -21,7 +21,7 @@ import { AuraImage } from '@auraimage/sdk';
 
 const aura = new AuraImage({
   secretKey: process.env.AURA_SECRET_KEY!,
-  projectName: process.env.NEXT_PUBLIC_AURA_PROJECT_NAME!
+  projectName: process.env.AURA_PROJECT!
 });
 
 export async function POST() {
