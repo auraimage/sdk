@@ -168,7 +168,13 @@ describe('HMAC serve tokens', () => {
 });
 
 describe('verifyUploadToken multi-key', () => {
-  const payload = { projectName: 'p', maxSize: 1, allowedTypes: ['image/*'], iat: 1, exp: 9999999999 } as const;
+  const payload: UploadTokenPayload = {
+    projectName: 'p',
+    maxSize: 1,
+    allowedTypes: ['image/*'],
+    iat: 1,
+    exp: 9999999999
+  };
 
   it('verifies when the matching secret is anywhere in the returned array', async () => {
     const token = await signUploadToken(payload, 'sk_live_a'.padEnd(40, '0'));
