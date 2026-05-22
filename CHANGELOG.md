@@ -1,5 +1,11 @@
 # @auraimage/sdk
 
+## 0.6.0
+
+### Minor Changes
+
+- 337b8b7: `verifyUploadToken` callback may now return `string | string[]`; verifies by trying each candidate. Single-string return remains supported. Enables multi-key rotation.
+
 ## 0.5.0
 
 ### Minor Changes
