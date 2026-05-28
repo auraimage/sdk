@@ -4,9 +4,11 @@ import type {
   ImageVisibility,
   ServeTokenPayload,
   SignUploadOptions,
+  UploadFromUrlOptions,
+  UploadResult,
   UploadTokenPayload
 } from './types.js';
-import { MAX_SERVE_TTL_SEC } from './types.js';
+import { MAX_SERVE_TTL_SEC, UploadFromUrlError } from './types.js';
 
 /** Parse "30mb", "500kb", "2gb" or pass-through numbers (bytes). */
 export function parseSize(input: number | string): number {
@@ -22,6 +24,19 @@ export function parseSize(input: number | string): number {
     gb: 1_024 ** 3
   };
   return Math.round(value * (multipliers[unit] ?? 1));
+}
+
+/** Extract a usable image name from a URL's last path segment. */
+function deriveNameFromUrl(url: string): string | undefined {
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return undefined;
+  }
+  const segments = pathname.split('/').filter(Boolean);
+  const last = segments[segments.length - 1];
+  return last || undefined;
 }
 
 export interface AuraImageOptions {
@@ -66,7 +81,9 @@ export class AuraImage {
       allowedTypes: options.allowedTypes ?? ['image/*'],
       iat: nowSec,
       exp: nowSec + (options.expiresIn ?? 3600),
-      ...(options.visibility ? { visibility: options.visibility } : {})
+      ...(options.visibility ? { visibility: options.visibility } : {}),
+      ...(options.name !== undefined ? { name: options.name } : {}),
+      ...(options.overwrite !== undefined ? { overwrite: options.overwrite } : {})
     };
 
     return signUploadToken(payload, this.secretKey);
@@ -124,5 +141,119 @@ export class AuraImage {
     }
     const body = (await res.json()) as SetVisibilityResult;
     return { visibility: body.visibility };
+  }
+
+  /**
+   * Download an image from a public URL and upload it to Auraimage.
+   * Signs an upload token internally, fetches the bytes, validates the
+   * Content-Type, and POSTs to the CDN upload endpoint.
+   *
+   * Requires `cdnUrl` set on the AuraImage instance.
+   */
+  async uploadFromUrl(url: string, options: UploadFromUrlOptions = {}): Promise<UploadResult> {
+    if (!this.cdnUrl) {
+      throw new Error('AuraImage.uploadFromUrl: cdnUrl is required (set it on the AuraImage constructor)');
+    }
+
+    const name = options.name ?? deriveNameFromUrl(url);
+    if (!name) {
+      throw new UploadFromUrlError(
+        `Could not derive image name from URL: ${url}. Provide a name explicitly.`,
+        url,
+        'invalid-name'
+      );
+    }
+
+    const maxSize = options.maxSize ? parseSize(options.maxSize) : parseSize('30mb');
+    const timeout = options.timeout ?? 30_000;
+
+    const token = await this.signUpload({
+      name,
+      maxSize,
+      visibility: options.visibility,
+      overwrite: options.overwrite
+    });
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    let response: Response;
+    try {
+      response = await fetch(url, { signal: controller.signal });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw new UploadFromUrlError(`Fetch timed out after ${timeout}ms: ${url}`, url, 'fetch');
+      }
+      throw new UploadFromUrlError(`Failed to fetch URL: ${(err as Error).message}`, url, 'fetch');
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      throw new UploadFromUrlError(
+        `Remote server returned ${response.status} for: ${url}`,
+        url,
+        'fetch',
+        response.status
+      );
+    }
+
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.startsWith('image/')) {
+      throw new UploadFromUrlError(
+        `Expected image Content-Type, got "${contentType}" for: ${url}`,
+        url,
+        'content-type'
+      );
+    }
+
+    const contentLength = response.headers.get('content-length');
+    if (contentLength) {
+      const parsed = parseInt(contentLength, 10);
+      if (!Number.isNaN(parsed) && parsed > maxSize) {
+        throw new UploadFromUrlError(
+          `Content-Length ${contentLength} exceeds max size ${maxSize} bytes for: ${url}`,
+          url,
+          'size'
+        );
+      }
+    }
+
+    let buffer: ArrayBuffer;
+    try {
+      buffer = await response.arrayBuffer();
+    } catch (err) {
+      throw new UploadFromUrlError(`Failed to read response body: ${(err as Error).message}`, url, 'fetch');
+    }
+
+    if (buffer.byteLength > maxSize) {
+      throw new UploadFromUrlError(
+        `Downloaded size ${buffer.byteLength} exceeds max size ${maxSize} bytes for: ${url}`,
+        url,
+        'size'
+      );
+    }
+
+    const blob = new Blob([buffer], { type: contentType });
+    const formData = new FormData();
+    formData.append('file', blob, name);
+
+    const uploadResponse = await fetch(`${this.cdnUrl}/v1/upload`, {
+      method: 'POST',
+      headers: { 'X-Aura-Signature': token },
+      body: formData
+    });
+
+    if (!uploadResponse.ok) {
+      const body = (await uploadResponse.json().catch(() => ({}))) as { message?: string };
+      throw new UploadFromUrlError(
+        `Upload failed (${uploadResponse.status}): ${body.message ?? 'unknown error'}`,
+        url,
+        'upload',
+        uploadResponse.status
+      );
+    }
+
+    return (await uploadResponse.json()) as UploadResult;
   }
 }

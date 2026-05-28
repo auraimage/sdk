@@ -1,5 +1,5 @@
-export type { ImageVisibility, ServeTokenPayload, Tier, UploadTokenPayload } from './types.js';
-export { MAX_SERVE_TTL_SEC } from './types.js';
+export type { ImageVisibility, ServeTokenPayload, Tier, UploadFromUrlOptions, UploadTokenPayload } from './types.js';
+export { MAX_SERVE_TTL_SEC, UploadFromUrlError } from './types.js';
 export {
   MissingProjectNameError,
   signServeToken,

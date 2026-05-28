@@ -18,6 +18,16 @@ export interface SignUploadOptions {
   projectName?: string;
   /** Initial visibility of the uploaded image. Default: "public". */
   visibility?: ImageVisibility;
+  /**
+   * Custom image name/path within the project (e.g. "blog/hero").
+   * Slashes create path segments. If not set, a random name is generated.
+   */
+  name?: string;
+  /**
+   * Allow overwriting an existing image with the same name.
+   * Default: false (returns 409 Conflict if the name exists).
+   */
+  overwrite?: boolean;
 }
 
 /** Options passed to AuraImage.getSignedUrl(). */
@@ -39,7 +49,53 @@ export interface UploadResult {
   width: number;
   height: number;
   format: string;
+  masterFormat: string;
   size: number;
+  visibility: ImageVisibility;
+}
+
+/** Options for AuraImage.uploadFromUrl(). */
+export interface UploadFromUrlOptions {
+  /**
+   * Custom image name/path within the project (e.g. "blog/hero").
+   * If not set, derived from the last path segment of the URL.
+   */
+  name?: string;
+  /**
+   * Max file size. Accepts bytes (number) or human-readable string
+   * like "30mb", "500kb", "2gb". Default: "30mb".
+   */
+  maxSize?: number | string;
+  /** Initial visibility of the uploaded image. Default: "public". */
+  visibility?: ImageVisibility;
+  /**
+   * Allow overwriting an existing image with the same name.
+   * Default: false (returns 409 Conflict if the name exists).
+   */
+  overwrite?: boolean;
+  /** Fetch timeout in milliseconds. Default: 30000 (30 seconds). */
+  timeout?: number;
+}
+
+/** Error thrown by AuraImage.uploadFromUrl(). The `url` and `kind` fields
+ *  identify what failed so callers can log or retry. */
+export class UploadFromUrlError extends Error {
+  public readonly url: string;
+  public readonly kind: 'fetch' | 'content-type' | 'size' | 'upload' | 'invalid-name';
+  public readonly status?: number;
+
+  constructor(
+    message: string,
+    url: string,
+    kind: 'fetch' | 'content-type' | 'size' | 'upload' | 'invalid-name',
+    status?: number
+  ) {
+    super(message);
+    this.name = 'UploadFromUrlError';
+    this.url = url;
+    this.kind = kind;
+    this.status = status;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -62,6 +118,10 @@ export interface UploadTokenPayload {
   exp: number;
   /** Initial visibility for the uploaded image. Default: "public". */
   visibility?: ImageVisibility;
+  /** Custom image name/path within the project (e.g. "blog/hero"). Slashes create path segments. */
+  name?: string;
+  /** Allow overwriting an existing image with the same name. */
+  overwrite?: boolean;
 }
 
 /**

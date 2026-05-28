@@ -78,6 +78,29 @@ await aura.signUpload({
 
 Returns the signature string. Pass it back to the client and have them set `X-Aura-Signature: <signature>` when POSTing to `https://cdn.auraimage.ai/v1/upload`.
 
+### `uploadFromUrl(url, options?)`
+
+Downloads a publicly-accessible image from a URL and uploads it directly to Auraimage — no browser involved. Requires `cdnUrl` on the constructor.
+
+```ts
+const result = await aura.uploadFromUrl('https://example.com/photo.jpg');
+// { url, key, blurhash, width, height, format, masterFormat, size, visibility }
+```
+
+Options:
+
+```ts
+await aura.uploadFromUrl('https://example.com/photo.jpg', {
+  name: 'blog/hero',      // default: derived from URL's last path segment
+  maxSize: '50mb',        // default '30mb'
+  visibility: 'private',  // default 'public'
+  overwrite: true,        // default false
+  timeout: 10_000         // fetch timeout in ms, default 30_000
+});
+```
+
+If `name` is omitted, it's derived from the URL path (`.../cat.jpg` → `"cat.jpg"`). Throws `UploadFromUrlError` on failure — the error includes the `url` that failed and a `kind` discriminant (`'fetch' | 'content-type' | 'size' | 'upload' | 'invalid-name'`).
+
 ### `getSignedUrl(filename, options?)`
 
 Builds a signed URL for a private image. Requires `serveSecret` and `cdnUrl` on the constructor.
