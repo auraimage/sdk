@@ -13,20 +13,17 @@ export class UploadError extends Error {
   readonly serverMessage?: string;
   /** Parsed `Retry-After` header in milliseconds. 0 when absent. */
   readonly retryAfterMs: number;
-  /** Cause, when `kind === 'network'`. */
-  readonly cause?: unknown;
 
   constructor(
     kind: UploadErrorKind,
     message: string,
     details: { status?: number; serverMessage?: string; retryAfterMs?: number; cause?: unknown } = {}
   ) {
-    super(message);
+    super(message, { cause: details.cause });
     this.name = 'UploadError';
     this.kind = kind;
     this.status = details.status;
     this.serverMessage = details.serverMessage;
     this.retryAfterMs = details.retryAfterMs ?? 0;
-    this.cause = details.cause;
   }
 }

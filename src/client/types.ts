@@ -6,10 +6,10 @@
  */
 import type { UploadError } from './errors';
 
-/** Default values for the retry policy from ADR 0004. */
+/** Default values for the retry policy from ADR 0004 / throughput budget from ADR 0013. */
 export const DEFAULT_MAX_ATTEMPTS = 4;
 export const DEFAULT_BASE_DELAY_MS = 500;
-export const DEFAULT_CONCURRENCY = 3;
+export const DEFAULT_CONCURRENCY = 8;
 
 /** Returned by `uploadOne` on success. Shape mirrors the cdn-origin upload route's 201 body. */
 export interface UploadResult {
@@ -41,7 +41,7 @@ export interface UploadOneOptions {
 }
 
 export interface UploadManyOptions extends Omit<UploadOneOptions, 'onProgress'> {
-  /** Maximum number of in-flight `uploadOne` calls. Default 3. */
+  /** Maximum number of in-flight `uploadOne` calls. Default 8. */
   concurrency?: number;
   onItemProgress?: (file: File, loaded: number, total: number) => void;
   onItemSettled?: (file: File, result: UploadResult | UploadError) => void;

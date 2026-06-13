@@ -149,4 +149,51 @@ describe('uploadMany', () => {
     });
     expect(settled.sort()).toEqual(['x.jpg', 'y.jpg']);
   });
+
+  it('final sweep rescues a file that exhausted its attempts in the main drain', async () => {
+    const a = makeFile('a.jpg');
+    const b = makeFile('b.jpg');
+    // a: exhausts its single attempt with a queue-full 503, then succeeds in the sweep.
+    plansByFile.set(a.name, [{ status: 503, body: '{"message":"Origin busy, retry"}' }, ok(a.name)]);
+    plansByFile.set(b.name, [ok(b.name)]);
+    const settled: string[] = [];
+    const r = await uploadMany([a, b], {
+      url: '/u',
+      token: 't',
+      maxAttempts: 1,
+      baseDelayMs: 1,
+      onItemSettled: (file) => settled.push(file.name)
+    });
+    expect(r.errors.size).toBe(0);
+    expect(r.results.get(a)!.key).toBe('a.jpg');
+    expect(r.results.get(b)!.key).toBe('b.jpg');
+    expect(settled.sort()).toEqual(['a.jpg', 'b.jpg']);
+  });
+
+  it('final sweep does not retry non-retryable failures', async () => {
+    const a = makeFile('a.jpg');
+    plansByFile.set(a.name, [{ status: 415, body: '{"message":"bad"}' }]);
+    const r = await uploadMany([a], { url: '/u', token: 't', maxAttempts: 1, baseDelayMs: 1 });
+    // A sweep retry would consume the fallback 500 plan and report kind 'rejected'.
+    expect(r.errors.get(a)!.kind).toBe('invalid');
+  });
+
+  it('still reports an error when the sweep also fails', async () => {
+    const a = makeFile('a.jpg');
+    plansByFile.set(a.name, [
+      { status: 503, body: '{"message":"busy"}' },
+      { status: 503, body: '{"message":"busy"}' }
+    ]);
+    const settled: string[] = [];
+    const r = await uploadMany([a], {
+      url: '/u',
+      token: 't',
+      maxAttempts: 1,
+      baseDelayMs: 1,
+      onItemSettled: (file) => settled.push(file.name)
+    });
+    expect(r.errors.get(a)).toBeInstanceOf(UploadError);
+    expect(r.errors.get(a)!.kind).toBe('rejected');
+    expect(settled).toEqual(['a.jpg']);
+  });
 });
