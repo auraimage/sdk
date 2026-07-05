@@ -46,7 +46,7 @@ const res = await fetch('https://cdn.auraimage.ai/v1/upload', {
   headers: { 'X-Aura-Signature': signature },
   body: form
 });
-const { url, key, blurhash, width, height } = await res.json();
+const { url, name, blurhash, width, height } = await res.json();
 ```
 
 ## Constructor
@@ -84,7 +84,7 @@ Downloads a publicly-accessible image from a URL and uploads it directly to Aura
 
 ```ts
 const result = await aura.uploadFromUrl('https://example.com/photo.jpg');
-// { url, key, blurhash, width, height, format, masterFormat, size, visibility }
+// { url, name, blurhash, width, height, format, masterFormat, size, visibility }
 ```
 
 Options:
@@ -99,25 +99,28 @@ await aura.uploadFromUrl('https://example.com/photo.jpg', {
 });
 ```
 
-If `name` is omitted, it's derived from the URL path (`.../cat.jpg` → `"cat.jpg"`). Throws `UploadFromUrlError` on failure — the error includes the `url` that failed and a `kind` discriminant (`'fetch' | 'content-type' | 'size' | 'upload' | 'invalid-name'`).
+If `name` is omitted, it's derived from the URL path (`.../cat.jpg` → stored name `"cat"` — the extension is stripped; the stored name is extension-less). Throws `UploadFromUrlError` on failure — the error includes the `url` that failed and a `kind` discriminant (`'fetch' | 'content-type' | 'size' | 'upload' | 'invalid-name'`).
 
-### `getSignedUrl(filename, options?)`
+### `getSignedUrl(name, options?)`
 
-Builds a signed URL for a private image. Requires `serveSecret` and `cdnUrl` on the constructor.
+Builds a signed URL for a private image from its extension-less name. The
+token binds the name, so the returned URL also authorizes any transform
+segment or serve extension you add to it. Requires `serveSecret` and
+`cdnUrl` on the constructor.
 
 ```ts
-const url = await aura.getSignedUrl('photo.jpg', {
+const url = await aura.getSignedUrl('photo', {
   expiresIn: 3600   // default 3600s; min 60s, max 7 days
 });
-// → https://cdn.auraimage.ai/my-project/photo.jpg?token=<base64url-payload>.<base64url-sig>
+// → https://cdn.auraimage.ai/my-project/photo?token=<base64url-payload>.<base64url-sig>
 ```
 
-### `setVisibility(filename, visibility)`
+### `setVisibility(name, visibility)`
 
 Flips an existing image between `'public'` and `'private'`. Idempotent. Requires `cdnUrl` on the constructor.
 
 ```ts
-await aura.setVisibility('photo.jpg', 'private');
+await aura.setVisibility('photo', 'private');
 ```
 
 ## Runtime requirements

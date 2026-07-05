@@ -14,8 +14,8 @@ export const DEFAULT_CONCURRENCY = 8;
 /** Returned by `uploadOne` on success. Shape mirrors the cdn-origin upload route's 201 body. */
 export interface UploadResult {
   url: string;
-  /** Stored filename — pass to `getSignedUrl()` / `setVisibility()`. */
-  key: string;
+  /** Stored image name (extension-less) — pass to `getSignedUrl()` / `setVisibility()`. */
+  name: string;
   width: number;
   height: number;
   blurhash: string;

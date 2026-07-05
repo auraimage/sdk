@@ -81,12 +81,14 @@ afterEach(() => {
 function makeFile(name: string): File {
   return new File([new Uint8Array([1])], name, { type: 'image/jpeg' });
 }
-function ok(name: string): XHRPlan {
+function ok(fileName: string): XHRPlan {
+  // The server strips the extension: the stored name is extension-less (ADR 0022).
+  const name = fileName.replace(/\.\w+$/, '');
   return {
     status: 201,
     body: JSON.stringify({
       url: `https://cdn.example/demo/${name}`,
-      key: name,
+      name,
       width: 1,
       height: 1,
       blurhash: 'L0',
@@ -123,7 +125,7 @@ describe('uploadMany', () => {
     const r = await uploadMany([a, b], { url: '/u', token: 't' });
     expect(r.errors.get(a)).toBeInstanceOf(UploadError);
     expect(r.errors.get(a)!.kind).toBe('invalid');
-    expect(r.results.get(b)!.key).toBe('b.jpg');
+    expect(r.results.get(b)!.name).toBe('b');
   });
 
   it('aborts pending starts when signal fires', async () => {
@@ -165,8 +167,8 @@ describe('uploadMany', () => {
       onItemSettled: (file) => settled.push(file.name)
     });
     expect(r.errors.size).toBe(0);
-    expect(r.results.get(a)!.key).toBe('a.jpg');
-    expect(r.results.get(b)!.key).toBe('b.jpg');
+    expect(r.results.get(a)!.name).toBe('a');
+    expect(r.results.get(b)!.name).toBe('b');
     expect(settled.sort()).toEqual(['a.jpg', 'b.jpg']);
   });
 

@@ -103,7 +103,7 @@ const ok201 = {
   status: 201,
   body: JSON.stringify({
     url: 'https://cdn.example/demo/photo.jpg',
-    key: 'photo.jpg',
+    name: 'photo',
     width: 100,
     height: 100,
     blurhash: 'L00000',
@@ -130,7 +130,7 @@ describe('uploadOne', () => {
     const p = uploadOne(makeFile(), { url: '/upload', token: 'tok', baseDelayMs: 10 });
     await vi.runAllTimersAsync();
     const result = await p;
-    expect(result.key).toBe('photo.jpg');
+    expect(result.name).toBe('photo');
     expect(records).toHaveLength(2);
   });
 

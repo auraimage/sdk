@@ -90,11 +90,13 @@ export class AuraImage {
   }
 
   /**
-   * Build a signed URL for a private image. Returns a full URL with a
-   * `?token=` query parameter. Default lifetime is 1 hour, max is 7 days.
+   * Build a signed URL for a private image from its extension-less name.
+   * The token binds the name, so the returned URL also authorizes any
+   * transform segment or serve extension added to it. Returns a full URL
+   * with a `?token=` query parameter. Default lifetime is 1 hour, max is 7 days.
    * Requires `serveSecret` and `cdnUrl` set on the AuraImage instance.
    */
-  async getSignedUrl(filename: string, options: GetSignedUrlOptions = {}): Promise<string> {
+  async getSignedUrl(name: string, options: GetSignedUrlOptions = {}): Promise<string> {
     if (!this.serveSecret) {
       throw new Error('AuraImage.getSignedUrl: serveSecret is required (set it on the AuraImage constructor)');
     }
@@ -106,16 +108,16 @@ export class AuraImage {
       typeof options.expiresIn === 'number' && Number.isFinite(options.expiresIn) ? options.expiresIn : 3600;
     const expiresIn = Math.min(Math.max(Math.floor(requested), 60), MAX_SERVE_TTL_SEC);
     const exp = Math.floor(Date.now() / 1000) + expiresIn;
-    const payload: ServeTokenPayload = { p: this.projectName, f: filename, exp };
+    const payload: ServeTokenPayload = { p: this.projectName, f: name, exp };
     const token = await signServeToken(payload, this.serveSecret);
-    return `${cdnUrl}/${this.projectName}/${encodeURIComponent(filename)}?token=${token}`;
+    return `${cdnUrl}/${this.projectName}/${name.split('/').map(encodeURIComponent).join('/')}?token=${token}`;
   }
 
   /**
    * Change the visibility of an existing image. Idempotent. Requires
    * `cdnUrl` set on the AuraImage instance.
    */
-  async setVisibility(filename: string, visibility: ImageVisibility): Promise<SetVisibilityResult> {
+  async setVisibility(name: string, visibility: ImageVisibility): Promise<SetVisibilityResult> {
     if (visibility !== 'public' && visibility !== 'private') {
       throw new Error("AuraImage.setVisibility: visibility must be 'public' or 'private'");
     }
@@ -125,7 +127,7 @@ export class AuraImage {
     }
     const signature = await this.signUpload();
     const res = await fetch(
-      `${cdnUrl}/v1/images/${encodeURIComponent(this.projectName)}/${encodeURIComponent(filename)}`,
+      `${cdnUrl}/v1/images/${encodeURIComponent(this.projectName)}/${name.split('/').map(encodeURIComponent).join('/')}`,
       {
         method: 'PATCH',
         headers: {

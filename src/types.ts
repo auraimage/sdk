@@ -43,8 +43,8 @@ export interface GetSignedUrlOptions {
 /** Returned by the Auraimage CDN upload endpoint on success. */
 export interface UploadResult {
   url: string;
-  /** Stored filename — pass this to getSignedUrl() / setVisibility(). */
-  key: string;
+  /** Stored image name (extension-less) — pass this to getSignedUrl() / setVisibility(). */
+  name: string;
   blurhash: string;
   width: number;
   height: number;
