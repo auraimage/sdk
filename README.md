@@ -123,6 +123,60 @@ Flips an existing image between `'public'` and `'private'`. Idempotent. Requires
 await aura.setVisibility('photo', 'private');
 ```
 
+## URL builders (no secret key)
+
+Two standalone helpers serialize AuraImage URLs from parameters — for developers who set an image `src` themselves instead of using a framework component. They take no secret key, make no network calls, and are **safe to run in the browser** (the one exception to the server-only rule above). Both build **public** URLs; for a private image, sign one with `getSignedUrl` instead.
+
+### `buildServeUrl(options)`
+
+Builds a Serve URL from friendly transform params, handling the path grammar (transform segment, format extension, cache-buster) for you.
+
+```ts
+import { buildServeUrl } from '@auraimage/sdk';
+
+buildServeUrl({
+  cdnUrl: 'https://cdn.auraimage.ai',
+  project: 'my-project',
+  name: 'blog/hero', // extension-less stored name (the `name` returned by an upload)
+  width: 800,
+  height: 600,
+  quality: 75,
+  format: 'auto', // 'auto' negotiates AVIF → WebP → JPEG
+  v: 3 // cache-buster
+});
+// → https://cdn.auraimage.ai/my-project/w=800,h=600,q=75/blog/hero?v=3
+```
+
+Only `cdnUrl`, `project`, and `name` are required; every other param appears in the URL **only when set** — pass none and you get the canonical `…/my-project/blog/hero`.
+
+| Param | Type | Notes |
+| --- | --- | --- |
+| `width`, `height` | `number` | Positive integers. Throws otherwise. |
+| `fit` | `'cover' \| 'contain' \| 'face' \| 'auto'` | Server-side default is `cover`. |
+| `quality` | `number` | 1–100. Throws otherwise. |
+| `format` | `'auto' \| 'jpeg' \| 'png' \| 'webp' \| 'avif'` | `auto` (or omitted) = automatic negotiation; `jpeg` emits `.jpg`. |
+| `lqip` | `boolean` | Request the low-quality placeholder variant. |
+| `v` | `string \| number` | Cache-buster; bump after an `overwrite` to break the shared cache. |
+
+> `name` must be **extension-less** (as stored). Passing `"photo.jpg"` with `format: 'webp'` yields `photo.jpg.webp`, which 404s.
+
+### `buildBlurhashUrl(options)`
+
+Builds the URL for an image's blurhash placeholder metadata.
+
+```ts
+import { buildBlurhashUrl } from '@auraimage/sdk';
+
+const url = buildBlurhashUrl({
+  cdnUrl: 'https://cdn.auraimage.ai',
+  project: 'my-project',
+  name: 'blog/hero' // + optional `v` cache-buster
+});
+// → https://cdn.auraimage.ai/v1/blurhash/my-project/blog/hero
+
+const { blurhash, width, height } = await fetch(url).then((r) => r.json());
+```
+
 ## Runtime requirements
 
 ESM-only, Node.js 20+. Uses `crypto.subtle`, `TextEncoder`, `btoa` / `atob` — all standard in modern Node, Bun, Deno, and Cloudflare Workers.
