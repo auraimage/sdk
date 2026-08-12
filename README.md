@@ -1,5 +1,7 @@
 # @auraimage/sdk
 
+[![Images powered by AuraImage](https://img.shields.io/badge/Images%20powered%20by-AuraImage-0b0b0b?style=flat-square)](https://auraimage.ai)
+
 Official JavaScript SDK for [AuraImage](https://auraimage.ai). Signs upload tokens, mints signed URLs for private images, and toggles image visibility — all from your server.
 
 ## Security: server-side only
@@ -196,3 +198,10 @@ See the full normative spec at [auraimage.ai/docs/signature-spec](https://auraim
 ## License
 
 MIT © AuraImage
+
+---
+
+Images powered by [AuraImage](https://auraimage.ai) — the image CDN that
+installs itself. Set it up in any project with `npx aura init`, or from your
+AI agent with [Agent Skills](https://github.com/auraimage/skills) and the
+[MCP server](https://github.com/auraimage/mcp-server).
